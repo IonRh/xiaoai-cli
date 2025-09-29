@@ -69,14 +69,14 @@ impl Mina {
         let login_response: LoginResponse = serde_json::from_slice(&bytes[11..])?;
         trace!("初步登录成功: {login_response:?}");
 
-        let hash = password_hash(&password);
+        let hash = password_hash(password);
         let form = HashMap::from([
             ("_json", "true"),
             ("qs", &login_response.qs),
             ("sid", &login_response.sid),
             ("_sign", &login_response._sign),
             ("callback", &login_response.callback),
-            ("user", &username),
+            ("user", username),
             ("hash", &hash),
         ]);
         let bytes = client
@@ -132,7 +132,7 @@ impl Mina {
         let info: Vec<MinaDeviceInfo> = serde_json::from_value(response.data)?;
         let devices = info
             .into_iter()
-            .map(|info| MinaDevice::new(Arc::clone(&self), info))
+            .map(|info| MinaDevice::new(Arc::clone(self), info))
             .collect();
 
         Ok(devices)

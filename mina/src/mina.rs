@@ -6,7 +6,6 @@ use serde_json::{Number, Value};
 
 pub use device::*;
 pub use mina::*;
-use utoipa::ToSchema;
 
 /// `Mina` 服务请求的响应。
 #[derive(Deserialize, Debug)]
@@ -31,7 +30,7 @@ impl MinaResponse {
 }
 
 /// `Mina` 设备信息。
-#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MinaDeviceInfo {
     #[serde(rename(deserialize = "deviceID"))]
