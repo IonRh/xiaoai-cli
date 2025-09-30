@@ -705,25 +705,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
-name = "mina"
-version = "0.1.0"
-dependencies = [
- "base16ct",
- "base64ct",
- "cookie_store",
- "log",
- "md-5",
- "rand",
- "reqwest",
- "reqwest_cookie_store",
- "serde",
- "serde_json",
- "sha1",
- "thiserror",
- "urlencoding",
-]
-
-[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1770,6 +1751,25 @@ name = "writeable"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea2f10b9bb0928dfb1b42b65e1f9e36f7f54dbdf08457afefb38afcdec4fa2bb"
+
+[[package]]
+name = "xiaoai"
+version = "0.1.0"
+dependencies = [
+ "base16ct",
+ "base64ct",
+ "cookie_store",
+ "log",
+ "md-5",
+ "rand",
+ "reqwest",
+ "reqwest_cookie_store",
+ "serde",
+ "serde_json",
+ "sha1",
+ "thiserror",
+ "urlencoding",
+]
 
 [[package]]
 name = "yoke"

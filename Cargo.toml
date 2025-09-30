@@ -1,3 +1,3 @@
 [workspace]
-members = ["mina"]
+members = ["xiaoai"]
 resolver = "3"
