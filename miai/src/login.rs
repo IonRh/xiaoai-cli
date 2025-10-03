@@ -36,8 +36,7 @@ impl Login {
 
         // 预先添加 Cookies
         let mut cookie_store = CookieStore::new(None);
-        let mut device_id = random_id(16);
-        device_id.make_ascii_uppercase();
+        let device_id = random_device_id();
         for (name, value) in [("sdkVersion", "3.9"), ("deviceId", &device_id)] {
             let cookie = RawCookie::new(name, value);
             cookie_store.insert_raw(&cookie, &server)?;
@@ -63,7 +62,14 @@ impl Login {
     /// 初步登录小爱服务。
     ///
     /// 结果中可能会出现登录失败的信息，但这无伤大雅，初步登录只是为了获取一些接下来认证所需的数据。
-    pub async fn login(&self) -> crate::Result<Value> {
+    pub async fn login(&self) -> crate::Result<LoginResponse> {
+        let raw = self.raw_login().await?;
+
+        Ok(serde_json::from_value(raw)?)
+    }
+
+    /// 同 [`Login::login`]，但返回原始的 JSON。
+    pub async fn raw_login(&self) -> crate::Result<Value> {
         // 初步登录以获取一些认证信息
         let bytes = self
             .client
@@ -83,7 +89,14 @@ impl Login {
     /// 认证小爱服务。
     ///
     /// 需要使用初步登录的结果进行。
-    pub async fn auth(&self, login_response: LoginResponse) -> crate::Result<Value> {
+    pub async fn auth(&self, login_response: LoginResponse) -> crate::Result<AuthResponse> {
+        let raw = self.raw_auth(login_response).await?;
+
+        Ok(serde_json::from_value(raw)?)
+    }
+
+    /// 同 [`Login::auth`]，但返回原始的 JSON。
+    pub async fn raw_auth(&self, login_response: LoginResponse) -> crate::Result<Value> {
         // 认证
         let form = HashMap::from([
             ("_json", "true"),
@@ -150,6 +163,13 @@ pub struct AuthResponse {
     pub location: String,
     pub nonce: Number,
     pub ssecurity: String,
+}
+
+fn random_device_id() -> String {
+    let mut device_id = random_id(16);
+    device_id.make_ascii_uppercase();
+
+    device_id
 }
 
 fn hash_password(password: impl AsRef<[u8]>) -> String {

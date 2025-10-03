@@ -30,7 +30,7 @@ pub struct XiaoaiResponse<T = Value> {
 }
 
 impl XiaoaiResponse {
-    /// 验证响应的 `code`，如果不对，此函数将报错。
+    /// 校验响应的 `code`，如果不对，此函数将报错。
     ///
     /// # Errors
     ///
