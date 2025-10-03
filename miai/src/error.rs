@@ -8,7 +8,7 @@ pub enum Error {
     Api(XiaoaiResponse),
 
     #[error(transparent)]
-    Request(#[from] reqwest::Error),
+    Reqwest(#[from] reqwest::Error),
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),

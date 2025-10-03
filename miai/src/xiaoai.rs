@@ -5,9 +5,11 @@ use std::{
 };
 
 use cookie_store::serde::json::{load_all, save_incl_expired_and_nonpersistent};
+use log::trace;
 use reqwest::{Client, Response, Url};
 use reqwest_cookie_store::CookieStoreMutex;
 use serde::Deserialize;
+use serde_json::json;
 
 use crate::{XiaoaiResponse, login::Login, util::random_id};
 
@@ -56,17 +58,17 @@ impl Xiaoai {
     }
 
     /// 列出所有设备的信息。
-    pub async fn devices(&self) -> crate::Result<Vec<DeviceInfo>> {
-        let devices = self
+    pub async fn device_info(&self) -> crate::Result<Vec<DeviceInfo>> {
+        let raw_devices = self
             .get("admin/v2/device_list?master=0")
             .await?
             .error_for_status()?
             .json::<XiaoaiResponse>()
             .await?
-            .error_for_code()?
-            .extract_data()?;
+            .error_for_code()?;
+        trace!("获取到设备列表: {}", raw_devices.data);
 
-        Ok(devices)
+        raw_devices.extract_data()
     }
 
     /// 小爱服务的通用 GET 请求。
@@ -81,16 +83,10 @@ impl Xiaoai {
     }
 
     /// 小爱服务的通用 POST 请求，同 [`Xiaoai::get`]，但可以带表单数据。
-    ///
-    /// 大多数情况下，表单数据的键都是已知且固定的，可以表示为字符串字面量。而值可能更加动态，因此选择
-    /// `HashMap<&str, String>` 作为表单数据的类型。
-    pub async fn post(
-        &self,
-        uri: &str,
-        mut form: HashMap<&str, String>,
-    ) -> crate::Result<Response> {
-        let request_id = random_id(30);
-        form.insert("requestId", format!("app_ios_{request_id}"));
+    pub async fn post(&self, uri: &str, mut form: HashMap<&str, &str>) -> crate::Result<Response> {
+        let mut request_id = random_id(30);
+        request_id.insert_str(0, "app_ios_");
+        form.insert("requestId", &request_id);
         let url = self.server.join(uri)?;
 
         Ok(self.client.post(url).form(&form).send().await?)
@@ -119,11 +115,48 @@ impl Xiaoai {
             server: Url::parse(API_SERVER).unwrap(),
         })
     }
+
+    /// 向小爱设备发送 OpenWrt UBUS 调用请求。
+    pub async fn ubus_call(
+        &self,
+        device_id: &str,
+        method: &str,
+        path: &str,
+        message: &str,
+    ) -> crate::Result<XiaoaiResponse> {
+        let form = HashMap::from([
+            ("deviceId", device_id),
+            ("method", method),
+            ("path", path),
+            ("message", message),
+        ]);
+
+        self.post("remote/ubus", form)
+            .await?
+            .error_for_status()?
+            .json::<XiaoaiResponse>()
+            .await?
+            .error_for_code()
+    }
+
+    /// 请求小爱设备播报文本。
+    pub async fn text_to_speech(
+        &self,
+        device_id: &str,
+        text: &str,
+    ) -> crate::Result<XiaoaiResponse> {
+        let message = json!({"text": text}).to_string();
+
+        self.ubus_call(device_id, "text_to_speech", "mibrain", &message)
+            .await
+    }
 }
 
 /// 小爱设备信息。
 #[derive(Clone, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
+    #[serde(rename = "deviceID")]
     pub device_id: String,
     pub name: String,
     pub hardware: String,

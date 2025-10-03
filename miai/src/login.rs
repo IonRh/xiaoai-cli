@@ -1,3 +1,5 @@
+//! 登录小爱服务。
+
 use std::{collections::HashMap, sync::Arc};
 
 use base64ct::{Base64, Encoding};
