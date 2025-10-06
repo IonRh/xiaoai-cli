@@ -113,14 +113,20 @@ impl Xiaoai {
 
     /// 保存登录状态到 `writer`。
     ///
-    /// 状态被保存为明文的 json，请注意安全性。
+    /// 状态被保存为明文的 json，请注意安全性。参见
+    /// [`cookie_store::serde::json::save_incl_expired_and_nonpersistent`]。
+    ///
+    /// # Panics
+    ///
+    /// 当内部发生锁中毒时会 panic。
     pub fn save<W: Write>(&self, writer: &mut W) -> cookie_store::Result<()> {
         save_incl_expired_and_nonpersistent(&self.cookie_store.lock().unwrap(), writer)
     }
 
-    /// 从 `reader` 读取登录状态。
+    /// 从 `reader` 加载登录状态。
     ///
-    /// **不会**验证登录状态的有效性，如果在请求时出错，请尝试重新 [`login`][Xiaoai::login]。
+    /// **不会**验证登录状态的有效性，如果在请求时出错，请尝试重新
+    /// [`login`][Xiaoai::login]。另请参见 [`cookie_store::serde::json::load_all`]。
     pub fn load<R: BufRead>(reader: R) -> cookie_store::Result<Self> {
         let cookie_store = Arc::new(CookieStoreMutex::new(load_all(reader)?));
         let client = Client::builder()
@@ -131,7 +137,7 @@ impl Xiaoai {
         Ok(Self {
             client,
             cookie_store,
-            server: Url::parse(API_SERVER).unwrap(),
+            server: Url::parse(API_SERVER)?,
         })
     }
 

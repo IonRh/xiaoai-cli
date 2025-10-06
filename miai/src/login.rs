@@ -38,7 +38,7 @@ impl Login {
         let mut cookie_store = CookieStore::new(None);
         let device_id = random_device_id();
         for (name, value) in [("sdkVersion", "3.9"), ("deviceId", &device_id)] {
-            let cookie = RawCookie::new(name, value);
+            let cookie = RawCookie::build((name, value)).path("/").build();
             cookie_store.insert_raw(&cookie, &server)?;
             trace!("预先添加 Cookies: {}", cookie);
         }

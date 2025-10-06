@@ -1,5 +1,5 @@
 //! 让小爱打个招呼！
-//! 
+//!
 //! 该示例演示了 [`Xiaoai`] 的基本用法，可用于快速上手。
 
 use std::env;
@@ -24,7 +24,7 @@ async fn main() {
     let xiaoai = Xiaoai::login(&username, &password).await.expect("login");
     println!("登录成功！");
 
-    let devices = xiaoai.device_info().await.expect("devices");
+    let devices = xiaoai.device_info().await.expect("device_info");
     if devices.is_empty() {
         println!("未发现小爱设备，请确保设备已在小米音箱 APP 中绑定！");
     } else {
