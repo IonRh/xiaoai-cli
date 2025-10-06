@@ -6,6 +6,8 @@ homepage = "https://github.com/DreamAlone666/miai"
 repository = "https://github.com/DreamAlone666/miai"
 description = "调用你的小米、小爱音箱"
 license = "MIT"
+keywords = ["xiaomi", "mijia", "miservice", "misound"]
+categories = ["api-bindings", "authentication"]
 
 [dependencies]
 base16ct = { version = "0.2.0", features = ["alloc"] }
