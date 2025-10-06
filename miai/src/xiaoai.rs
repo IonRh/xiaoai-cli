@@ -170,6 +170,71 @@ impl Xiaoai {
         self.ubus_call(device_id, "text_to_speech", "mibrain", &message)
             .await
     }
+
+    /// 请求小爱播放 `url`。
+    pub async fn player_play_url(
+        &self,
+        device_id: &str,
+        url: &str,
+    ) -> crate::Result<XiaoaiResponse> {
+        let message = json!({
+            "url": url,
+            "type": 2,
+            "media": "app_ios"
+        })
+        .to_string();
+
+        self.ubus_call(device_id, "player_play_url", "mediaplayer", &message)
+            .await
+    }
+
+    /// 请求小爱播放音乐。
+    ///
+    /// 和 [`Xiaoai::player_play_url`] 相比，此方法针对音频特化，能支持更多参数，但并非所有机型都支持。
+    /// 目前尚不支持配置这些参数，仅用作播放音乐的另一种方案。
+    pub async fn player_play_music(
+        &self,
+        device_id: &str,
+        url: &str,
+    ) -> crate::Result<XiaoaiResponse> {
+        const AUDIO_ID: &str = "1582971365183456177";
+        const ID: &str = "355454500";
+        let message = json!({
+            "startaudioid": AUDIO_ID,
+            "music": {
+                "payload": {
+                    // 来自 miservice:
+                    // If set to "MUSIC", the light will be on
+                    "audio_type": "",
+                    "audio_items": [
+                        {
+                            "item_id": {
+                                "audio_id": AUDIO_ID,
+                                "cp": {
+                                    "album_id": "-1",
+                                    "episode_index": 0,
+                                    "id": ID,
+                                    "name": "xiaowei",
+                                },
+                            },
+                            "stream": {"url": url},
+                        }
+                    ],
+                    "list_params": {
+                        "listId": "-1",
+                        "loadmore_offset": 0,
+                        "origin": "xiaowei",
+                        "type": "MUSIC",
+                    },
+                },
+                "play_behavior": "REPLACE_ALL",
+            }
+        })
+        .to_string();
+
+        self.ubus_call(device_id, "player_play_music", "mediaplayer", &message)
+            .await
+    }
 }
 
 /// 小爱设备信息。
