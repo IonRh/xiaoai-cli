@@ -2,6 +2,10 @@
 name = "miai"
 version = "0.1.0"
 edition = "2024"
+homepage = "https://github.com/DreamAlone666/miai"
+repository = "https://github.com/DreamAlone666/miai"
+description = "调用你的小米、小爱音箱"
+license = "MIT"
 
 [dependencies]
 base16ct = { version = "0.2.0", features = ["alloc"] }
