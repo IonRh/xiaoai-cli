@@ -4,13 +4,13 @@ use std::{collections::HashMap, sync::Arc};
 
 use base64ct::{Base64, Encoding};
 use cookie_store::{CookieStore, RawCookie};
-use log::trace;
 use md5::{Digest, Md5};
 use reqwest::{Client, Url};
 use reqwest_cookie_store::CookieStoreMutex;
 use serde::Deserialize;
 use serde_json::{Number, Value};
 use sha1::Sha1;
+use tracing::trace;
 
 use crate::util::random_id;
 

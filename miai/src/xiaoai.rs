@@ -5,11 +5,11 @@ use std::{
 };
 
 use cookie_store::serde::json::{load_all, save_incl_expired_and_nonpersistent};
-use log::trace;
 use reqwest::{Client, Url};
 use reqwest_cookie_store::CookieStoreMutex;
 use serde::Deserialize;
 use serde_json::json;
+use tracing::trace;
 
 use crate::{XiaoaiResponse, login::Login, util::random_id};
 
@@ -170,9 +170,16 @@ impl Xiaoai {
 #[derive(Clone, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
+    /// 设备 ID。
+    ///
+    /// 每个与设备相关的请求都会用 ID 指明对象。
     #[serde(rename = "deviceID")]
     pub device_id: String,
+
+    /// 设备名称。
     pub name: String,
+
+    /// 机型。
     pub hardware: String,
 }
 
