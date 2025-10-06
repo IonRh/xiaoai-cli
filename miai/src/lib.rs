@@ -1,3 +1,30 @@
+//! 调用你的小米、小爱音箱，或其他任何支持的小爱设备。
+//!
+//! 灵感和实现思路源于 [miservice_fork](https://github.com/yihong0618/MiService)，但主要聚焦于小爱音箱这一设备。
+//!
+//! # 主要功能
+//!
+//! - 播报文字。
+//! - 播放音乐。
+//!
+//! # 示例
+//!
+//! ```no_run
+//! use miai::Xiaoai;
+//!
+//! #[tokio::main(flavor = "current_thread")]
+//! async fn main() {
+//!     // 登录你的账号
+//!     let xiaoai = Xiaoai::login("username", "password").await.unwrap();
+//!
+//!     // 获取你的设备信息
+//!     for device in xiaoai.device_info().await.unwrap() {
+//!         // 向设备发送请求吧！
+//!         xiaoai.text_to_speech(&device.device_id, "你好！").await.unwrap();
+//!     }
+//! }
+//! ```
+
 mod error;
 pub mod login;
 mod util;
