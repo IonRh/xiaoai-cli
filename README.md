@@ -1,5 +1,10 @@
 # miai
 
+[![Crates.io Version](https://img.shields.io/crates/v/miai)](https://crates.io/crates/miai)
+[![docs.rs](https://img.shields.io/docsrs/miai)](https://docs.rs/miai/0.1.0)
+[![Crates.io License](https://img.shields.io/crates/l/miai)
+](/LICENSE)
+
 调用你的小米、小爱音箱，或其他任何支持的小爱设备。
 
 灵感和实现思路源于 [miservice_fork](https://github.com/yihong0618/MiService)，但主要聚焦于小爱音箱这一设备。
