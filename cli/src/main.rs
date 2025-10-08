@@ -4,6 +4,7 @@ use anyhow::ensure;
 use clap::{Parser, Subcommand};
 use inquire::{Confirm, Password, PasswordDisplayMode, Select, Text};
 use miai::{DeviceInfo, Xiaoai};
+use url::Url;
 
 const DEFAULT_AUTH_FILE: &str = "xiaoai-auth.json";
 
@@ -29,7 +30,12 @@ enum Commands {
     /// 列出设备
     Device,
     /// 播报文本
-    Say { text: String },
+    Say {
+        text: String,
+    },
+    Play {
+        url: Url,
+    },
 }
 
 impl Cli {
@@ -111,6 +117,11 @@ async fn main() -> anyhow::Result<()> {
         Commands::Say { text } => {
             let device_id = cli.device_id(&xiaoai).await?;
             let response = xiaoai.text_to_speech(&device_id, text).await?;
+            println!("{}", response.message);
+        }
+        Commands::Play { url } => {
+            let device_id = cli.device_id(&xiaoai).await?;
+            let response = xiaoai.player_play_url(&device_id, url.as_str()).await?;
             println!("{}", response.message);
         }
     }

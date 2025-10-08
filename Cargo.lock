@@ -213,6 +213,7 @@ dependencies = [
  "inquire",
  "miai",
  "tokio",
+ "url",
 ]
 
 [[package]]
