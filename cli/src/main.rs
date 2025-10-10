@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt::Display, fs::File, io::BufReader, path::PathBuf};
 
-use anyhow::ensure;
+use anyhow::{Context, ensure};
 use clap::{Parser, Subcommand};
 use inquire::{Confirm, Password, PasswordDisplayMode, Select, Text};
 use miai::{DeviceInfo, Xiaoai};
@@ -30,19 +30,19 @@ enum Commands {
     /// 列出设备
     Device,
     /// 播报文本
-    Say {
-        text: String,
-    },
-    Play {
-        url: Url,
-    },
+    Say { text: String },
+    /// 播放
+    Play { url: Url },
 }
 
 impl Cli {
     fn xiaoai(&self) -> anyhow::Result<Xiaoai> {
-        let file = File::open(&self.auth_file)?;
+        let file = File::open(&self.auth_file)
+            .with_context(|| format!("需要可用的认证文件 {}", self.auth_file.display()))?;
 
-        Xiaoai::load(BufReader::new(file)).map_err(anyhow::Error::from_boxed)
+        Xiaoai::load(BufReader::new(file))
+            .map_err(anyhow::Error::from_boxed)
+            .context("加载认证失败")
     }
 
     /// 获取用户指定的设备 ID。
@@ -55,7 +55,7 @@ impl Cli {
             return Ok(device_id.into());
         }
 
-        let info = xiaoai.device_info().await?;
+        let info = xiaoai.device_info().await.context("获取设备列表失败")?;
         ensure!(!info.is_empty(), "无可用设备，需要在小米音箱 APP 中绑定");
         if info.len() == 1 {
             return Ok(info[0].device_id.clone().into());
