@@ -145,8 +145,8 @@ impl Xiaoai {
     pub async fn ubus_call(
         &self,
         device_id: &str,
-        method: &str,
         path: &str,
+        method: &str,
         message: &str,
     ) -> crate::Result<XiaoaiResponse> {
         let form = HashMap::from([
@@ -160,23 +160,15 @@ impl Xiaoai {
     }
 
     /// 请求小爱设备播报文本。
-    pub async fn text_to_speech(
-        &self,
-        device_id: &str,
-        text: &str,
-    ) -> crate::Result<XiaoaiResponse> {
+    pub async fn tts(&self, device_id: &str, text: &str) -> crate::Result<XiaoaiResponse> {
         let message = json!({"text": text}).to_string();
 
-        self.ubus_call(device_id, "text_to_speech", "mibrain", &message)
+        self.ubus_call(device_id, "mibrain", "text_to_speech", &message)
             .await
     }
 
     /// 请求小爱播放 `url`。
-    pub async fn player_play_url(
-        &self,
-        device_id: &str,
-        url: &str,
-    ) -> crate::Result<XiaoaiResponse> {
+    pub async fn play_url(&self, device_id: &str, url: &str) -> crate::Result<XiaoaiResponse> {
         let message = json!({
             "url": url,
             "type": 2,
@@ -184,19 +176,15 @@ impl Xiaoai {
         })
         .to_string();
 
-        self.ubus_call(device_id, "player_play_url", "mediaplayer", &message)
+        self.ubus_call(device_id, "mediaplayer", "player_play_url", &message)
             .await
     }
 
     /// 请求小爱播放音乐。
     ///
-    /// 和 [`Xiaoai::player_play_url`] 相比，此方法针对音频特化，能支持更多参数，但并非所有机型都支持。
+    /// 和 [`Xiaoai::play_url`] 相比，此方法针对音频特化，能支持更多参数，但并非所有机型都支持。
     /// 目前尚不支持配置这些参数，仅用作播放音乐的另一种方案。
-    pub async fn player_play_music(
-        &self,
-        device_id: &str,
-        url: &str,
-    ) -> crate::Result<XiaoaiResponse> {
+    pub async fn play_music(&self, device_id: &str, url: &str) -> crate::Result<XiaoaiResponse> {
         const AUDIO_ID: &str = "1582971365183456177";
         const ID: &str = "355454500";
         let message = json!({
@@ -232,7 +220,7 @@ impl Xiaoai {
         })
         .to_string();
 
-        self.ubus_call(device_id, "player_play_music", "mediaplayer", &message)
+        self.ubus_call(device_id, "mediaplayer", "player_play_music", &message)
             .await
     }
 }

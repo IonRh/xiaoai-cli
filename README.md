@@ -35,16 +35,16 @@ async fn main() {
         let device_id = device.device_id;
 
         // 让设备播报文本
-        xiaoai.text_to_speech(&device_id, "你好！").await.unwrap();
+        xiaoai.tts(&device_id, "你好！").await.unwrap();
 
         // 提供一个链接，让设备播放音乐
         let response = xiaoai
-            .player_play_url(&device_id, "http://music-url")
+            .play_url(&device_id, "http://music-url")
             .await
             .unwrap();
 
         // 通过响应体了解请求的结果
-        println!("player_play_url: {}", response.message);
+        println!("play_url: {}", response.message);
     }
 }
 ```

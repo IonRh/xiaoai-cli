@@ -31,10 +31,7 @@ async fn main() {
         for device in devices {
             println!("发现小爱设备 {}，让它打个招呼。", device.name);
             let text = format!("你好，{username}！我是 {}。", device.name);
-            let response = xiaoai
-                .text_to_speech(&device.device_id, &text)
-                .await
-                .expect("text_to_speech");
+            let response = xiaoai.tts(&device.device_id, &text).await.expect("tts");
             println!("{} 回复: {}", device.name, response.message);
         }
     }
