@@ -1,7 +1,7 @@
 # miai
 
 [![Crates.io Version](https://img.shields.io/crates/v/miai)](https://crates.io/crates/miai)
-[![docs.rs](https://img.shields.io/docsrs/miai)](https://docs.rs/miai/0.1.0)
+[![docs.rs](https://img.shields.io/docsrs/miai)](https://docs.rs/miai)
 [![Crates.io License](https://img.shields.io/crates/l/miai)
 ](/LICENSE)
 
