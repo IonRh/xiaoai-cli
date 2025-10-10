@@ -24,15 +24,15 @@ async fn main() {
     let xiaoai = Xiaoai::login(&username, &password).await.expect("login");
     println!("登录成功！");
 
-    let devices = xiaoai.device_info().await.expect("device_info");
-    if devices.is_empty() {
+    let device_info = xiaoai.device_info().await.expect("device_info");
+    if device_info.is_empty() {
         println!("未发现小爱设备，请确保设备已在小米音箱 APP 中绑定！");
     } else {
-        for device in devices {
-            println!("发现小爱设备 {}，让它打个招呼。", device.name);
-            let text = format!("你好，{username}！我是 {}。", device.name);
-            let response = xiaoai.tts(&device.device_id, &text).await.expect("tts");
-            println!("{} 回复: {}", device.name, response.message);
+        for info in device_info {
+            println!("发现小爱设备 {}，让它打个招呼。", info.name);
+            let text = format!("你好，{username}！我是 {}。", info.name);
+            let response = xiaoai.tts(&info.device_id, &text).await.expect("tts");
+            println!("{} 回复: {}", info.name, response.message);
         }
     }
 }

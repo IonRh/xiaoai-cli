@@ -36,8 +36,8 @@ async fn main() {
         xiaoai
     };
 
-    let devices = xiaoai.device_info().await.expect("device_info");
-    for device in devices {
-        println!("发现小爱设备 {}。", device.name);
+    let device_info = xiaoai.device_info().await.expect("device_info");
+    for info in device_info {
+        println!("发现小爱设备 {}。", info.name);
     }
 }

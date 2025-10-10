@@ -18,9 +18,9 @@
 //!     let xiaoai = Xiaoai::login("username", "password").await.unwrap();
 //!
 //!     // 获取你的设备信息
-//!     for device in xiaoai.device_info().await.unwrap() {
+//!     for info in xiaoai.device_info().await.unwrap() {
 //!         // 向设备发送请求吧！
-//!         xiaoai.tts(&device.device_id, "你好！").await.unwrap();
+//!         xiaoai.tts(&info.device_id, "你好！").await.unwrap();
 //!     }
 //! }
 //! ```

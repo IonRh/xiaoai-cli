@@ -28,11 +28,11 @@ async fn main() {
     let xiaoai = Xiaoai::login("username", "password").await.unwrap();
 
     // 查询你的设备信息
-    let devices = xiaoai.device_info().await.unwrap();
+    let device_info = xiaoai.device_info().await.unwrap();
 
-    for device in devices {
+    for info in device_info {
         // device_id 为请求指明目标设备
-        let device_id = device.device_id;
+        let device_id = info.device_id;
 
         // 让设备播报文本
         xiaoai.tts(&device_id, "你好！").await.unwrap();
