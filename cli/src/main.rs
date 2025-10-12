@@ -56,6 +56,16 @@ async fn main() -> anyhow::Result<()> {
             let response = xiaoai.play_url(&device_id, url.as_str()).await?;
             println!("{}", response.message);
         }
+        Commands::Volume { volume } => {
+            let device_id = cli.device_id(&xiaoai).await?;
+            let resposne = xiaoai.set_volume(&device_id, *volume).await?;
+            println!("{}", resposne.message);
+        }
+        Commands::Ask { text } => {
+            let device_id = cli.device_id(&xiaoai).await?;
+            let resposne = xiaoai.nlp(&device_id, text).await?;
+            println!("{}", resposne.message);
+        }
     }
 
     Ok(())
@@ -86,6 +96,10 @@ enum Commands {
     Say { text: String },
     /// 播放
     Play { url: Url },
+    /// 调整音量
+    Volume { volume: u32 },
+    /// 询问
+    Ask { text: String },
 }
 
 impl Cli {
