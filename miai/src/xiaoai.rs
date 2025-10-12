@@ -193,7 +193,7 @@ impl Xiaoai {
                 "payload": {
                     // 来自 miservice:
                     // If set to "MUSIC", the light will be on
-                    "audio_type": "",
+                    // "audio_type": "MUSIC",
                     "audio_items": [
                         {
                             "item_id": {
@@ -221,6 +221,18 @@ impl Xiaoai {
         .to_string();
 
         self.ubus_call(device_id, "mediaplayer", "player_play_music", &message)
+            .await
+    }
+
+    /// 请求小爱调整音量。
+    pub async fn set_volume(&self, device_id: &str, volume: u32) -> crate::Result<XiaoaiResponse> {
+        let message = json!({
+            "volume": volume,
+            "media": "app_ios"
+        })
+        .to_string();
+
+        self.ubus_call(device_id, "mediaplayer", "player_set_volume", &message)
             .await
     }
 }
