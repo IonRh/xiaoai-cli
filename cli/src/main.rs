@@ -8,6 +8,59 @@ use url::Url;
 
 const DEFAULT_AUTH_FILE: &str = "xiaoai-auth.json";
 
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    if let Commands::Login = cli.command {
+        let username = Text::new("账号:").prompt()?;
+        let password = Password::new("密码:")
+            .with_display_toggle_enabled()
+            .with_display_mode(PasswordDisplayMode::Masked)
+            .without_confirmation()
+            .with_help_message("CTRL + R 显示/隐藏密码")
+            .prompt()?;
+        let xiaoai = Xiaoai::login(&username, &password).await?;
+
+        let can_save = if cli.auth_file.exists() {
+            Confirm::new(&format!("{} 已存在，是否覆盖?", cli.auth_file.display())).prompt()?
+        } else {
+            true
+        };
+
+        if can_save {
+            let mut file = File::create(cli.auth_file)?;
+            xiaoai.save(&mut file).map_err(anyhow::Error::from_boxed)?;
+        }
+
+        return Ok(());
+    }
+
+    // 以下命令需要登录
+    let xiaoai = cli.xiaoai()?;
+    match &cli.command {
+        Commands::Login => (),
+        Commands::Device => {
+            let device_info = xiaoai.device_info().await?;
+            for info in device_info {
+                println!("{}", DisplayDeviceInfo(info));
+            }
+        }
+        Commands::Say { text } => {
+            let device_id = cli.device_id(&xiaoai).await?;
+            let response = xiaoai.tts(&device_id, text).await?;
+            println!("{}", response.message);
+        }
+        Commands::Play { url } => {
+            let device_id = cli.device_id(&xiaoai).await?;
+            let response = xiaoai.play_url(&device_id, url.as_str()).await?;
+            println!("{}", response.message);
+        }
+    }
+
+    Ok(())
+}
+
 #[derive(Parser)]
 #[command(version, about)]
 struct Cli {
@@ -42,7 +95,7 @@ impl Cli {
 
         Xiaoai::load(BufReader::new(file))
             .map_err(anyhow::Error::from_boxed)
-            .context("加载认证失败")
+            .with_context(|| format!("加载认证文件 {} 失败", self.auth_file.display()))
     }
 
     /// 获取用户指定的设备 ID。
@@ -76,55 +129,4 @@ impl Display for DisplayDeviceInfo {
         writeln!(f, "设备 ID: {}", self.0.device_id)?;
         writeln!(f, "机型: {}", self.0.hardware)
     }
-}
-
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
-
-    if let Commands::Login = cli.command {
-        let username = Text::new("账号:").prompt()?;
-        let password = Password::new("密码:")
-            .with_display_toggle_enabled()
-            .with_display_mode(PasswordDisplayMode::Masked)
-            .without_confirmation()
-            .with_help_message("CTRL + R 显示/隐藏密码")
-            .prompt()?;
-        let xiaoai = Xiaoai::login(&username, &password).await?;
-
-        let can_save = if cli.auth_file.exists() {
-            Confirm::new(&format!("{} 已存在，是否覆盖?", cli.auth_file.display())).prompt()?
-        } else {
-            true
-        };
-
-        if can_save {
-            let mut file = File::create(cli.auth_file)?;
-            return xiaoai.save(&mut file).map_err(anyhow::Error::from_boxed);
-        }
-    }
-
-    // 以下命令需要登录
-    let xiaoai = cli.xiaoai()?;
-    match &cli.command {
-        Commands::Login => (),
-        Commands::Device => {
-            let device_info = xiaoai.device_info().await?;
-            for info in device_info {
-                println!("{}", DisplayDeviceInfo(info));
-            }
-        }
-        Commands::Say { text } => {
-            let device_id = cli.device_id(&xiaoai).await?;
-            let response = xiaoai.text_to_speech(&device_id, text).await?;
-            println!("{}", response.message);
-        }
-        Commands::Play { url } => {
-            let device_id = cli.device_id(&xiaoai).await?;
-            let response = xiaoai.player_play_url(&device_id, url.as_str()).await?;
-            println!("{}", response.message);
-        }
-    }
-
-    Ok(())
 }

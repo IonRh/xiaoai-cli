@@ -7,6 +7,6 @@ edition = "2024"
 anyhow = "1.0.100"
 clap = { version = "4.5.48", features = ["derive"] }
 inquire = "0.9.1"
-miai = { version = "0.1.0", path = "../miai" }
+miai = { path = "../miai" }
 tokio = { version = "1.47.1", features = ["macros"] }
 url = "2.5.7"
