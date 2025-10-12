@@ -235,6 +235,21 @@ impl Xiaoai {
         self.ubus_call(device_id, "mediaplayer", "player_set_volume", &message)
             .await
     }
+
+    /// 请求小爱执行文本。
+    ///
+    /// 效果和口头询问一样。
+    pub async fn nlp(&self, device_id: &str, text: &str) -> crate::Result<XiaoaiResponse> {
+        let message = json!({
+            "tts": 1,
+            "nlp": 1,
+            "nlp_text": text
+        })
+        .to_string();
+
+        self.ubus_call(device_id, "mibrain", "ai_service", &message)
+            .await
+    }
 }
 
 /// 小爱设备信息。
