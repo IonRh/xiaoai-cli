@@ -250,6 +250,16 @@ impl Xiaoai {
         self.ubus_call(device_id, "mibrain", "ai_service", &message)
             .await
     }
+
+    /// 获取播放器的状态信息。
+    ///
+    /// 可能包含播放状态，音量和循环播放设置。
+    pub async fn player_status(self, device_id: &str) -> crate::Result<XiaoaiResponse> {
+        let message = json!({"media": "app_ios"}).to_string();
+
+        self.ubus_call(device_id, "mediaplayer", "player_get_play_status", &message)
+            .await
+    }
 }
 
 /// 小爱设备信息。
