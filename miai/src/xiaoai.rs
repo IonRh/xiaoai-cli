@@ -258,7 +258,7 @@ impl Xiaoai {
     /// 获取播放器的状态信息。
     ///
     /// 可能包含播放状态，音量和循环播放设置。
-    pub async fn player_status(self, device_id: &str) -> crate::Result<XiaoaiResponse> {
+    pub async fn player_status(&self, device_id: &str) -> crate::Result<XiaoaiResponse> {
         let message = json!({"media": "app_ios"}).to_string();
 
         self.ubus_call(device_id, "mediaplayer", "player_get_play_status", &message)
@@ -267,7 +267,7 @@ impl Xiaoai {
 
     /// 设置播放器的播放状态。
     pub async fn set_play_state(
-        self,
+        &self,
         device_id: &str,
         state: PlayState,
     ) -> crate::Result<XiaoaiResponse> {
