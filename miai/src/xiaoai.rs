@@ -275,6 +275,7 @@ impl Xiaoai {
             PlayState::Play => "play",
             PlayState::Pause => "pause",
             PlayState::Stop => "stop",
+            PlayState::Toggle => "toggle",
         };
         let message = json!({"action": action, "media": "app_ios"}).to_string();
 
@@ -289,6 +290,8 @@ pub enum PlayState {
     Play,
     Pause,
     Stop,
+    /// 在播放和暂停之间切换。
+    Toggle,
 }
 
 /// 小爱设备信息。
