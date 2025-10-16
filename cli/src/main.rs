@@ -3,7 +3,7 @@ use std::{borrow::Cow, fmt::Display, fs::File, io::BufReader, path::PathBuf};
 use anyhow::{Context, ensure};
 use clap::{Parser, Subcommand};
 use inquire::{Confirm, Password, PasswordDisplayMode, Select, Text};
-use miai::{DeviceInfo, Xiaoai};
+use miai::{DeviceInfo, PlayState, Xiaoai};
 use url::Url;
 
 const DEFAULT_AUTH_FILE: &str = "xiaoai-auth.json";
@@ -32,41 +32,39 @@ async fn main() -> anyhow::Result<()> {
             let mut file = File::create(cli.auth_file)?;
             xiaoai.save(&mut file).map_err(anyhow::Error::from_boxed)?;
         }
-
         return Ok(());
     }
 
     // 以下命令需要登录
     let xiaoai = cli.xiaoai()?;
-    match &cli.command {
-        Commands::Login => (),
-        Commands::Device => {
-            let device_info = xiaoai.device_info().await?;
-            for info in device_info {
-                println!("{}", DisplayDeviceInfo(info));
+    if let Commands::Device = cli.command {
+        let device_info = xiaoai.device_info().await?;
+        for info in device_info {
+            println!("{}", DisplayDeviceInfo(info));
+        }
+        return Ok(());
+    }
+
+    // 以下命令需要设备 ID
+    let device_id = cli.device_id(&xiaoai).await?;
+    let response = match &cli.command {
+        Commands::Say { text } => xiaoai.tts(&device_id, text).await?,
+        Commands::Play { url } => {
+            if let Some(url) = url {
+                xiaoai.play_url(&device_id, url.as_str()).await?
+            } else {
+                xiaoai.set_play_state(&device_id, PlayState::Play).await?
             }
         }
-        Commands::Say { text } => {
-            let device_id = cli.device_id(&xiaoai).await?;
-            let response = xiaoai.tts(&device_id, text).await?;
-            println!("{}", response.message);
-        }
-        Commands::Play { url } => {
-            let device_id = cli.device_id(&xiaoai).await?;
-            let response = xiaoai.play_url(&device_id, url.as_str()).await?;
-            println!("{}", response.message);
-        }
-        Commands::Volume { volume } => {
-            let device_id = cli.device_id(&xiaoai).await?;
-            let resposne = xiaoai.set_volume(&device_id, *volume).await?;
-            println!("{}", resposne.message);
-        }
-        Commands::Ask { text } => {
-            let device_id = cli.device_id(&xiaoai).await?;
-            let resposne = xiaoai.nlp(&device_id, text).await?;
-            println!("{}", resposne.message);
-        }
-    }
+        Commands::Volume { volume } => xiaoai.set_volume(&device_id, *volume).await?,
+        Commands::Ask { text } => xiaoai.nlp(&device_id, text).await?,
+        Commands::Pause => xiaoai.set_play_state(&device_id, PlayState::Pause).await?,
+        Commands::Stop => xiaoai.set_play_state(&device_id, PlayState::Stop).await?,
+        _ => unreachable!("所有命令都应该被处理"),
+    };
+    println!("code: {}", response.code);
+    println!("message: {}", response.message);
+    println!("data: {}", response.data);
 
     Ok(())
 }
@@ -95,7 +93,14 @@ enum Commands {
     /// 播报文本
     Say { text: String },
     /// 播放
-    Play { url: Url },
+    Play {
+        /// 可选的音乐链接
+        url: Option<Url>,
+    },
+    /// 暂停
+    Pause,
+    /// 停止
+    Stop,
     /// 调整音量
     Volume { volume: u32 },
     /// 询问
