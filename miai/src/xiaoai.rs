@@ -260,6 +260,31 @@ impl Xiaoai {
         self.ubus_call(device_id, "mediaplayer", "player_get_play_status", &message)
             .await
     }
+
+    /// 设置播放器的播放状态。
+    pub async fn set_play_state(
+        self,
+        device_id: &str,
+        state: PlayState,
+    ) -> crate::Result<XiaoaiResponse> {
+        let action = match state {
+            PlayState::Play => "play",
+            PlayState::Pause => "pause",
+            PlayState::Stop => "stop",
+        };
+        let message = json!({"action": action, "media": "app_ios"}).to_string();
+
+        self.ubus_call(device_id, "mediaplayer", "player_play_operation", &message)
+            .await
+    }
+}
+
+/// 表示播放器的播放状态。
+#[derive(Clone, Debug)]
+pub enum PlayState {
+    Play,
+    Pause,
+    Stop,
 }
 
 /// 小爱设备信息。
