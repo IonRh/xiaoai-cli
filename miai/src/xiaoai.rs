@@ -171,7 +171,11 @@ impl Xiaoai {
     pub async fn play_url(&self, device_id: &str, url: &str) -> crate::Result<XiaoaiResponse> {
         let message = json!({
             "url": url,
-            "type": 2,
+            // type 字段不仅能控制亮灯行为，还能控制暂停行为？
+            // 比如在机型 L16A 上，设为 3 才能有完整的播放、暂停控制，但无法停止
+            // 设为 0、1 可以播放、停止，但暂停后就无法恢复，设为 2 则无法暂停
+            // 貌似每个机型都不太一样，参考 https://github.com/yihong0618/MiService/issues/30
+            "type": 3,
             "media": "app_ios"
         })
         .to_string();
