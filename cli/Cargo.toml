@@ -1,5 +1,5 @@
 [package]
-name = "cli"
+name = "miai-cli"
 version = "0.1.0"
 edition = "2024"
 
@@ -10,3 +10,7 @@ inquire = "0.9.1"
 miai = { path = "../miai" }
 tokio = { version = "1.47.1", features = ["macros"] }
 url = "2.5.7"
+
+[[bin]]
+path = "src/main.rs"
+name = "xiaoai"
