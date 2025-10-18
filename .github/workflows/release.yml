@@ -19,6 +19,9 @@ jobs:
                   # changelog: CHANGELOG.md
                   # (required) GitHub token for creating GitHub Releases.
                   token: ${{ secrets.GITHUB_TOKEN }}
+                  # An optional pattern that matches a prefix for the release tag,
+                  # before the version number.
+                  prefix: "cli"
 
     upload-assets:
         needs: create-release
