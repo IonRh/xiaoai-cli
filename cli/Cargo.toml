@@ -14,7 +14,3 @@ url = "2.5.7"
 [[bin]]
 path = "src/main.rs"
 name = "xiaoai"
-
-[target.release]
-strip = "symbols"
-lto = "thin"
