@@ -64,3 +64,5 @@ jobs:
                   zip: windows
                   # (required) GitHub token for uploading assets to GitHub Releases.
                   token: ${{ secrets.GITHUB_TOKEN }}
+                  # (optional) Build with the given set of features if any.
+                  features: ${{ matrix.features || '' }}
