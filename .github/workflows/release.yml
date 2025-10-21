@@ -36,6 +36,8 @@ jobs:
                       os: windows-latest
                     - target: aarch64-unknown-linux-musl
                       os: ubuntu-latest
+                      # musl 目标往往缺库
+                      features: vendored-openssl
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v4
