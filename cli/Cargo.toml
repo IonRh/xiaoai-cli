@@ -10,7 +10,12 @@ inquire = "0.9.1"
 miai = { path = "../miai" }
 tokio = { version = "1.47.1", features = ["macros"] }
 url = "2.5.7"
+openssl = { version = "0.10", features = ["vendored"], optional = true }
 
 [[bin]]
 path = "src/main.rs"
 name = "xiaoai"
+
+[features]
+# https://github.com/cross-rs/cross/wiki/FAQ#openssl-is-not-installed
+vendored-openssl = ["dep:openssl"]
