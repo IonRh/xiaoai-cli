@@ -51,6 +51,11 @@
   xiaoai pause  # 暂停
   xiaoai stop   # 停止
   ```
+- 获取音箱状态
+  ```sh
+  xiaoai status
+  ```
+  
 - 认证均使用认证文件，可以指定认证文件的路径
   ```sh
   # 认证文件默认使用当前目录的 xiaoai-auth.json
