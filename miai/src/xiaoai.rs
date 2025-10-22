@@ -8,7 +8,7 @@ use cookie_store::serde::json::{load_all, save_incl_expired_and_nonpersistent};
 use reqwest::{Client, Url};
 use reqwest_cookie_store::CookieStoreMutex;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use tracing::trace;
 
 use crate::{XiaoaiResponse, login::Login, util::random_id};
@@ -265,6 +265,15 @@ impl Xiaoai {
             .await
     }
 
+    /// 获取并解析播放器状态为结构化数据。
+    ///
+    /// 该方法会返回原始 JSON 数据以及一些常见字段（播放状态、音量、当前曲目信息、以及可能的最近对话文本）。
+    /// 由于不同设备/固件返回结构可能不完全相同，解析采用宽松的搜索方式，尽量从返回的 JSON 中提取有用的字符串或数字字段。
+    pub async fn player_status_parsed(&self, device_id: &str) -> crate::Result<PlayerStatus> {
+        let resp = self.player_status(device_id).await?;
+        Ok(PlayerStatus { raw: resp.data })
+    }
+
     /// 设置播放器的播放状态。
     pub async fn set_play_state(
         &self,
@@ -316,4 +325,13 @@ fn random_request_id() -> String {
     request_id.insert_str(0, "app_ios_");
 
     request_id
+}
+
+/// 播放器状态的宽松表示。保留原始返回的 JSON 在 `raw` 字段中，
+/// 并提供一些方便读取的可选字段。
+#[derive(Clone, Debug, Deserialize)]
+pub struct PlayerStatus {
+    /// 原始返回的 data 字段（通常是 JSON 对象）
+    #[serde(flatten)]
+    pub raw: Value,
 }

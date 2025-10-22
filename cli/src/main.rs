@@ -60,6 +60,11 @@ async fn main() -> anyhow::Result<()> {
         Commands::Ask { text } => xiaoai.nlp(&device_id, text).await?,
         Commands::Pause => xiaoai.set_play_state(&device_id, PlayState::Pause).await?,
         Commands::Stop => xiaoai.set_play_state(&device_id, PlayState::Stop).await?,
+        Commands::Status => {
+            let status = xiaoai.player_status_parsed(&device_id).await?;
+            println!("{}", status.raw);
+            return Ok(());
+        }
         _ => unreachable!("所有命令都应该被处理"),
     };
     println!("code: {}", response.code);
@@ -105,6 +110,8 @@ enum Commands {
     Volume { volume: u32 },
     /// 询问
     Ask { text: String },
+    /// 获取播放状态与最近对话文本
+    Status,
 }
 
 impl Cli {
