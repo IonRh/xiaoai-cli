@@ -1,0 +1,13 @@
+{
+  "name": "Rust",
+  "image": "mcr.microsoft.com/vscode/devcontainers/rust:1-1.82-bullseye",  // 指定 Rust 版本
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["rust-lang.rust-analyzer", "vadimcn.vscode-lldb"]  // 添加扩展
+    }
+  },
+  "postCreateCommand": "rustc --version"  // 验证安装
+}
