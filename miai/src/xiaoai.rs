@@ -10,6 +10,9 @@ use reqwest_cookie_store::CookieStoreMutex;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tracing::trace;
+use std::future::Future;
+use tokio::time::sleep;
+use std::time::Duration;
 
 use crate::{XiaoaiResponse, login::Login, util::random_id};
 
@@ -290,6 +293,53 @@ impl Xiaoai {
 
         self.ubus_call(device_id, "mediaplayer", "player_play_operation", &message)
             .await
+    }
+
+    /// 跳转到播放进度（毫秒）。设备端可能使用不同的字段/方法名，这里使用常见的
+    /// `player_seek`，message 中包含 position 字段（单位毫秒）。
+    pub async fn seek(&self, device_id: &str, position_ms: u32) -> crate::Result<XiaoaiResponse> {
+        let message = json!({
+            "position": position_ms,
+            "media": "app_ios"
+        })
+        .to_string();
+
+        self.ubus_call(device_id, "mediaplayer", "player_seek", &message).await
+    }
+
+    /// 简单轮询 ubus 接口并把返回交给 handler 处理。
+    ///
+    /// - `path`, `method`, `message` 与 `device_id` 会传到服务端。
+    /// - `interval_secs` 为轮询间隔（秒）。
+    /// - `handler` 接受一次 `XiaoaiResponse` 并返回一个 Future，当该 future 完成后继续下一次轮询。
+    ///
+    /// 注意：此函数会在调用处所在的异步任务中循环运行。如果希望在后台运行，请使用 `tokio::spawn`。
+    pub async fn poll_ubus<F, Fut>(
+        &self,
+        device_id: &str,
+        path: &str,
+        method: &str,
+        message: &str,
+        interval_secs: u64,
+        mut handler: F,
+    ) where
+        F: FnMut(crate::XiaoaiResponse) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
+    {
+        loop {
+            match self.ubus_call(device_id, path, method, message).await {
+                Ok(resp) => {
+                    // 交由调用方处理返回值
+                    handler(resp).await;
+                }
+                Err(err) => {
+                    // 简单记录错误（不退出循环）
+                    eprintln!("poll_ubus error: {}", err);
+                }
+            }
+
+            sleep(Duration::from_secs(interval_secs)).await;
+        }
     }
 }
 
