@@ -65,31 +65,7 @@ async fn main() -> anyhow::Result<()> {
             println!("{}", status.raw);
             return Ok(());
         }
-        Commands::Seek { position_ms } => xiaoai.seek(&device_id, *position_ms).await?,
-        Commands::Listen { path, method, message, interval_secs } => {
-            let xi = xiaoai.clone();
-            let dev = device_id.to_string();
-            let path = path.clone();
-            let method = method.clone();
-            let msg = message.clone().unwrap_or_else(|| "{}".to_string());
-            let interval = *interval_secs;
-
-            println!("开启监听：path={} method={} interval={}s，按 Ctrl+C 停止", path, method, interval);
-
-            // 在后台运行轮询任务，同时在主任务等待 Ctrl+C 然后退出
-            let handle = tokio::spawn(async move {
-                xi.poll_ubus(&dev, &path, &method, &msg, interval, |resp| async move {
-                    println!("code: {} message: {} data: {}", resp.code, resp.message, resp.data);
-                })
-                .await;
-            });
-
-            // 等待用户中断
-            tokio::signal::ctrl_c().await?;
-            println!("收到中断，正在停止监听...");
-            handle.abort();
-            return Ok(());
-        }
+        _ => unreachable!("所有命令都应该被处理"),
     };
     println!("code: {}", response.code);
     println!("message: {}", response.message);
@@ -136,25 +112,7 @@ enum Commands {
     Ask { text: String },
     /// 获取播放状态与最近对话文本
     Status,
-    /// 跳转播放进度（毫秒）
-    Seek { position_ms: u32 },
-    /// 轮询监听设备的 ubus 接口并在终端打印结果（按 Ctrl+C 停止）
-    Listen {
-        /// ubus 的 path，默认 mibrain
-        #[arg(long, default_value = "mibrain")]
-        path: String,
-        /// ubus 的 method，默认 nlp_result_get
-        #[arg(long, default_value = "nlp_result_get")]
-        method: String,
-        /// 发送的 message（默认为 `{}`）
-        #[arg(long)]
-        message: Option<String>,
-        /// 轮询间隔（秒）
-        #[arg(long, default_value_t = 5u64)]
-        interval_secs: u64,
-    },
 }
-
 
 impl Cli {
     fn xiaoai(&self) -> anyhow::Result<Xiaoai> {
