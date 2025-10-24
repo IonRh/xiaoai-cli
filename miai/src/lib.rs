@@ -32,12 +32,14 @@ mod error;
 pub mod login;
 mod util;
 mod xiaoai;
+pub mod watcher;
 
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 
 pub use error::*;
 pub use xiaoai::*;
+pub use watcher::*;
 
 /// 小爱服务请求的响应。
 #[derive(Clone, Deserialize, Debug)]

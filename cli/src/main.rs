@@ -3,7 +3,7 @@ use std::{borrow::Cow, fmt::Display, fs::File, io::BufReader, path::PathBuf};
 use anyhow::{Context, ensure};
 use clap::{Parser, Subcommand};
 use inquire::{Confirm, Password, PasswordDisplayMode, Select, Text};
-use miai::{DeviceInfo, PlayState, Xiaoai};
+use miai::{DeviceInfo, PlayState, Xiaoai, ConversationWatcher};
 use url::Url;
 
 const DEFAULT_AUTH_FILE: &str = "xiaoai-auth.json";
@@ -65,6 +65,61 @@ async fn main() -> anyhow::Result<()> {
             println!("{}", status.raw);
             return Ok(());
         }
+        Commands::Check { config } => {
+            // 获取设备信息
+            let devices = xiaoai.device_info().await?;
+            let device_info = devices.iter().find(|d| d.device_id == device_id);
+            let hardware = device_info
+                .map(|d| d.hardware.as_str())
+                .unwrap_or("LX06");
+            
+            // 输出初始化信息到 stderr，避免干扰 JSON 输出
+            eprintln!("🎧 开始监听音箱关键词...");
+            eprintln!("设备: {}", device_info.map(|d| d.name.as_str()).unwrap_or("未知"));
+            eprintln!("硬件型号: {}", hardware);
+            eprintln!("配置文件: {}", config.display());
+            eprintln!("按 Ctrl+C 停止监听\n");
+            
+            // 加载关键词配置
+            let mut watcher = ConversationWatcher::from_json_file(config)
+                .with_context(|| format!("加载配置文件 {} 失败", config.display()))?;
+            
+            // 输出已启用的关键词到 stderr
+            let enabled_keywords: Vec<_> = watcher.get_enabled_keywords().collect();
+            if enabled_keywords.is_empty() {
+                eprintln!("⚠️  警告: 配置文件中没有启用的关键词");
+            } else {
+                eprintln!("📝 已启用的关键词:");
+                for (i, kw) in enabled_keywords.iter().enumerate() {
+                    eprintln!("  {}. {}", i + 1, kw);
+                }
+            }
+            eprintln!("---\n");
+            
+            // 克隆 device_id 以便在闭包中使用
+            let device_id_clone = device_id.to_string();
+            
+            // 启动监听
+            watcher.watch(&xiaoai, &device_id, hardware, move |keyword_match| {
+                let device_id = device_id_clone.clone();
+                async move {
+                    // 输出匹配信息为 JSON
+                    let output = serde_json::json!({
+                        "timestamp": keyword_match.conversation.time,
+                        "query": keyword_match.conversation.query,
+                        "matched_keyword": keyword_match.matched_keyword,
+                        "description": keyword_match.config.description,
+                        "device_id": device_id,
+                    });
+                    
+                    println!("{}", serde_json::to_string(&output)?);
+                    
+                    Ok(())
+                }
+            }).await?;
+            
+            return Ok(());
+        }
         _ => unreachable!("所有命令都应该被处理"),
     };
     println!("code: {}", response.code);
@@ -112,6 +167,12 @@ enum Commands {
     Ask { text: String },
     /// 获取播放状态与最近对话文本
     Status,
+    /// 监听关键词并触发回调（使用配置文件）
+    Check {
+        /// 关键词配置文件路径
+        #[arg(short, long, default_value = "keywords.json")]
+        config: PathBuf,
+    },
 }
 
 impl Cli {

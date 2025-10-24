@@ -1,0 +1,33 @@
+{
+  "keywords": [
+    {
+      "keywords": ["请问", "请帮我"],
+      "match_mode": "starts_with",
+      "enabled": true,
+      "description": "礼貌询问"
+    },
+    {
+      "keywords": ["你好", "嗨"],
+      "match_mode": "starts_with",
+      "enabled": true,
+      "description": "打招呼"
+    },
+    {
+      "keywords": ["播放", "来首"],
+      "match_mode": "starts_with",
+      "enabled": true,
+      "description": "音乐播放"
+    },
+    {
+      "keywords": ["关键词"],
+      "match_mode": "contains",
+      "enabled": false,
+      "description": "测试用关键词（已禁用）"
+    }
+  ],
+  "initial_interval": 1.0,
+  "min_interval": 0.2,
+  "max_interval": 3.0,
+  "fetch_limit": 1,
+  "block_xiaoai_response": true
+}

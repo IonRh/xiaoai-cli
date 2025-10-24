@@ -55,6 +55,48 @@
   ```sh
   xiaoai status
   ```
+- 持续监听音箱对话消息（输出 JSON 格式，便于二次开发）
+  ```sh
+  # 默认每秒轮询一次
+  xiaoai check
+  
+  # 自定义轮询间隔（秒）
+  xiaoai check --interval 2
+  xiaoai check -i 0.5  # 每 0.5 秒轮询一次
+  ```
+  **输出格式**：
+  ```json
+  {"timestamp":1729766145,"query":"吃饭了吗","answer":"别提了，我脑海里两个小人正打得不可开交，一个要我减肥，一个要我多吃点。","device_id":"123456"}
+  ```
+  
+  **使用说明**：
+  - 持续监听音箱的对话消息，每当检测到新对话时输出一行 JSON
+  - 输出到 stdout（标准输出），状态信息输出到 stderr（标准错误）
+  - 适合用于管道处理、自动化响应、拦截自定义回复等场景
+  - 使用 Ctrl+C 停止监听
+  - 只会输出新的对话，避免重复
+  - 底层使用与 [xiaomusic](https://github.com/hanxi/xiaomusic) 相同的轮询机制
+  
+  **二次开发示例**：
+  ```bash
+  # 拦截问题并自定义回复
+  xiaoai check | while read -r line; do
+    query=$(echo "$line" | jq -r '.query')
+    device_id=$(echo "$line" | jq -r '.device_id')
+    
+    case "$query" in
+      *"天气"*)
+        # 获取实际天气信息并回复
+        xiaoai say "今天天气晴朗，适合出门" --device-id "$device_id"
+        ;;
+      *"开灯"*)
+        # 调用智能家居 API 开灯
+        echo "执行开灯操作..."
+        xiaoai say "好的，已为您开灯" --device-id "$device_id"
+        ;;
+    esac
+  done
+  ```
   
 - 认证均使用认证文件，可以指定认证文件的路径
   ```sh

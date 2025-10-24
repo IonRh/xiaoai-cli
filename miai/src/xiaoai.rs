@@ -291,6 +291,177 @@ impl Xiaoai {
         self.ubus_call(device_id, "mediaplayer", "player_play_operation", &message)
             .await
     }
+
+    /// 获取小爱音箱最近收到的消息和对话记录（旧方法 - 使用 ubus API）。
+    ///
+    /// 该方法使用 ubus 调用获取 NLP 结果，但由于小米服务器的数据保留时间极短，
+    /// 通常会返回空结果。建议使用 `get_conversations` 方法作为替代。
+    #[deprecated(note = "建议使用 get_conversations 方法，该方法使用更可靠的 conversation API")]
+    pub async fn get_messages(&self, device_id: &str) -> crate::Result<Vec<MessageRecord>> {
+        let resp = self.ubus_call(device_id, "mibrain", "nlp_result_get", "{}").await?;
+        
+        // 解析响应数据
+        let data = &resp.data;
+        trace!("获取消息响应: {}", data);
+        
+        let info = data["info"].as_str().unwrap_or("{}");
+        trace!("info 字段: {}", info);
+        
+        let result: Value = serde_json::from_str(info)?;
+        let result_array = result["result"].as_array();
+        
+        if result_array.is_none() {
+            trace!("result 字段不是数组或不存在");
+            return Ok(Vec::new());
+        }
+
+        let mut messages = Vec::new();
+        for item in result_array.unwrap() {
+            if !item.get("nlp").and_then(|v| v.as_str()).is_some() {
+                trace!("跳过无效 item: {}", item);
+                continue;
+            }
+
+            let nlp_str = item["nlp"].as_str().unwrap();
+            let nlp: Value = serde_json::from_str(nlp_str)?;
+            
+            let request_id = nlp["meta"]["request_id"].as_str().unwrap_or("").to_string();
+            let timestamp_ms = nlp["meta"]["timestamp"].as_i64().unwrap_or(0);
+            
+            let answers = nlp["response"]["answer"].as_array();
+            if answers.is_none() {
+                trace!("没有 answer 数组");
+                continue;
+            }
+
+            let mut answer_records = Vec::new();
+            for answer in answers.unwrap() {
+                let domain = answer["domain"].as_str().unwrap_or("").to_string();
+                let action = answer["action"].as_str().unwrap_or("").to_string();
+                let content = answer["content"]["to_speak"].as_str().unwrap_or("").to_string();
+                let question = answer["intention"]["query"].as_str().unwrap_or("").to_string();
+                
+                answer_records.push(AnswerRecord {
+                    domain,
+                    action,
+                    content,
+                    question,
+                });
+            }
+
+            messages.push(MessageRecord {
+                request_id,
+                timestamp_ms,
+                answers: answer_records,
+            });
+        }
+
+        Ok(messages)
+    }
+
+    /// 获取小爱音箱的对话记录（推荐方法 - 使用 conversation API）。
+    ///
+    /// 该方法使用与 xiaomusic 相同的 API，能够更可靠地获取最近的对话记录。
+    /// 可以指定 `limit` 参数来控制返回的对话数量（默认为 2）。
+    /// 
+    /// # 参数
+    /// - `device_id`: 设备 ID
+    /// - `hardware`: 设备型号（例如 "L05C", "L06A" 等）
+    /// - `limit`: 返回的对话数量限制，默认为 2
+    pub async fn get_conversations(
+        &self,
+        device_id: &str,
+        hardware: &str,
+        limit: Option<u32>,
+    ) -> crate::Result<Vec<Conversation>> {
+        let limit = limit.unwrap_or(2);
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+
+        // 使用 xiaomusic 使用的 conversation API
+        let url = format!(
+            "https://userprofile.mina.mi.com/device_profile/v2/conversation?source=dialogu&hardware={}&timestamp={}&limit={}",
+            hardware, timestamp, limit
+        );
+
+        // 从 cookie_store 中提取必要的 cookie 信息
+        let cookie_store = self.cookie_store.lock().unwrap();
+        let api_url = Url::parse(self.server.as_str())?;
+        
+        let mut service_token = String::new();
+        let mut user_id = String::new();
+        
+        // 从 API 服务器的 cookie 中提取信息
+        for cookie in cookie_store.matches(&api_url) {
+            match cookie.name() {
+                "serviceToken" => service_token = cookie.value().to_string(),
+                "userId" => user_id = cookie.value().to_string(),
+                _ => {}
+            }
+        }
+        drop(cookie_store);
+        
+        trace!("使用 deviceId={}, userId={}, serviceToken 长度={}", device_id, user_id, service_token.len());
+        
+        // 构造 cookie 字符串
+        let cookie_str = format!(
+            "deviceId={}; serviceToken={}; userId={}",
+            device_id, service_token, user_id
+        );
+
+        let http_resp = self
+            .client
+            .get(&url)
+            .header("Cookie", cookie_str)
+            .send()
+            .await?;
+
+        let status = http_resp.status();
+        trace!("Conversation API HTTP状态: {}", status);
+        
+        if !status.is_success() {
+            let body = http_resp.text().await?;
+            trace!("Conversation API 错误响应: {}", body);
+            return Err(crate::Error::Api(XiaoaiResponse {
+                code: status.as_u16() as i64,
+                message: format!("HTTP {}: {}", status, body),
+                data: serde_json::Value::Null,
+            }));
+        }
+
+        let resp = http_resp.json::<ConversationResponse>().await?;
+
+        if resp.code != 0 {
+            // 构造一个 XiaoaiResponse 用于返回错误
+            let error_resp = XiaoaiResponse {
+                code: resp.code as i64,
+                message: format!("Conversation API 返回错误码: {}", resp.code),
+                data: resp.data.clone(),
+            };
+            return Err(crate::Error::Api(error_resp));
+        }
+
+        // 解析 data 字段（可能是字符串形式的 JSON）
+        let data_str = if let Some(data) = resp.data.as_str() {
+            data
+        } else if let Some(_data) = resp.data.as_object() {
+            // 如果已经是对象，转回字符串再解析（保持一致性）
+            &serde_json::to_string(&resp.data)?
+        } else {
+            return Ok(Vec::new());
+        };
+
+        let conversation_data: ConversationData = serde_json::from_str(data_str)?;
+        
+        if conversation_data.records.is_empty() {
+            trace!("没有对话记录");
+            return Ok(Vec::new());
+        }
+
+        Ok(conversation_data.records)
+    }
 }
 
 /// 表示播放器的播放状态。
@@ -334,4 +505,79 @@ pub struct PlayerStatus {
     /// 原始返回的 data 字段（通常是 JSON 对象）
     #[serde(flatten)]
     pub raw: Value,
+}
+
+/// 小爱音箱的消息记录。
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageRecord {
+    /// 请求 ID
+    pub request_id: String,
+    
+    /// 时间戳（毫秒）
+    pub timestamp_ms: i64,
+    
+    /// 回答列表
+    pub answers: Vec<AnswerRecord>,
+}
+
+/// 小爱的回答记录。
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnswerRecord {
+    /// 领域
+    pub domain: String,
+    
+    /// 动作
+    pub action: String,
+    
+    /// 回答内容
+    pub content: String,
+    
+    /// 用户问题
+    pub question: String,
+}
+
+/// Conversation API 的响应结构
+#[derive(Clone, Debug, Deserialize)]
+pub struct ConversationResponse {
+    pub code: i32,
+    pub data: Value,
+}
+
+/// 对话数据的包装结构
+#[derive(Clone, Debug, Deserialize)]
+pub struct ConversationData {
+    pub records: Vec<Conversation>,
+}
+
+/// 单条对话记录
+#[derive(Clone, Debug, Deserialize)]
+pub struct Conversation {
+    /// 时间戳（秒）
+    pub time: i64,
+    
+    /// 用户的查询/问题
+    #[serde(default)]
+    pub query: String,
+    
+    /// 小爱的回答（可能有多个）
+    #[serde(default)]
+    pub answers: Vec<ConversationAnswer>,
+}
+
+/// 对话中的单个回答
+#[derive(Clone, Debug, Deserialize)]
+pub struct ConversationAnswer {
+    /// TTS 信息（语音合成的文本）
+    #[serde(default)]
+    pub tts: Option<TtsInfo>,
+}
+
+/// TTS 文本信息
+#[derive(Clone, Debug, Deserialize)]
+pub struct TtsInfo {
+    /// 要播报的文本内容
+    #[serde(default)]
+    pub text: String,
 }
