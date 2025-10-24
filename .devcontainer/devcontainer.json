@@ -1,31 +1,13 @@
 {
-  "name": "Rust (Codespaces)",
-  "image": "mcr.microsoft.com/vscode/devcontainers/rust:1-1.82-bullseye", // 指定 Rust 版本（可换为你需要的镜像）
-  "workspaceFolder": "/workspaces/xiaoai-cli",
-  "remoteUser": "vscode",
+  "name": "Rust",
+  "image": "mcr.microsoft.com/vscode/devcontainers/rust:1-bullseye",
   "features": {
     "ghcr.io/devcontainers/features/rust:1": {}
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "rust-lang.rust-analyzer",
-        "vadimcn.vscode-lldb"
-      ]
+      "extensions": ["rust-lang.rust-analyzer", "vadimcn.vscode-lldb"]
     }
   },
-  // 在容器创建完成后运行（安装组件 / 验证）
-  "postCreateCommand": "rustc --version && cargo --version",
-  // 每次容器启动后执行（如自动构建，或启动 dev server）
-  "postStartCommand": "cargo build --workspace || true",
-  "forwardPorts": [8080],
-  "portsAttributes": {
-    "8080": {
-      "label": "app",
-      "onAutoForward": "openPreview"
-    }
-  },
-  "settings": {
-    "terminal.integrated.defaultProfile.linux": "bash"
-  }
+  "postCreateCommand": "rustc --version"
 }
