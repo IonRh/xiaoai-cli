@@ -155,6 +155,7 @@ enum Commands {
     },
 }
 
+
 impl Cli {
     fn xiaoai(&self) -> anyhow::Result<Xiaoai> {
         let file = File::open(&self.auth_file)
