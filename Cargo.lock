@@ -1021,6 +1021,7 @@ dependencies = [
  "inquire",
  "miai",
  "openssl",
+ "serde",
  "serde_json",
  "tokio",
  "url",

@@ -1,7 +1,7 @@
 [package]
 name = "miai-cli"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 anyhow = "1.0.100"
@@ -10,6 +10,7 @@ inquire = "0.9.1"
 miai = { path = "../miai" }
 tokio = { version = "1.47.1", features = ["macros"] }
 url = "2.5.7"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = "0.4"
 openssl = { version = "0.10", features = ["vendored"], optional = true }

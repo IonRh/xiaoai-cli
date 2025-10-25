@@ -8,7 +8,7 @@ use md5::{Digest, Md5};
 use reqwest::{Client, Url};
 use reqwest_cookie_store::CookieStoreMutex;
 use serde::Deserialize;
-use serde_json::{Number, Value};
+use serde_json::Value;
 use sha1::Sha1;
 use tracing::trace;
 
@@ -126,20 +126,43 @@ impl Login {
     ///
     /// 需要在认证成功后进行。
     pub async fn get_token(&self, auth_response: AuthResponse) -> crate::Result<Value> {
-        // 获取 serviceToken，存于 Cookies
-        let client_sign = client_sign(&auth_response);
-        let url = Url::parse_with_params(&auth_response.location, [("clientSign", &client_sign)])?;
+        // 使用 notificationUrl 如果可用（新版API）
+        let url_str = if let Some(notification_url) = &auth_response.notification_url {
+            // 完整URL
+            if notification_url.starts_with("http") {
+                notification_url.clone()
+            } else {
+                // 相对URL，需要拼接
+                self.server.join(notification_url)?.to_string()
+            }
+        } else {
+            // 使用旧版API的 location + clientSign
+            let client_sign = client_sign(&auth_response)?;
+            Url::parse_with_params(&auth_response.location, [("clientSign", &client_sign)])?.to_string()
+        };
+        
+        let url = Url::parse(&url_str)?;
+        
+        // 发送请求，但不立即解析为JSON
         let response = self
             .client
             .get(url)
             .send()
             .await?
-            .error_for_status()?
-            .json()
-            .await?;
-        trace!("尝试获取 serviceToken: {response}");
+            .error_for_status()?;
+        
+        // 尝试获取响应体文本
+        let text = response.text().await?;
+        trace!("尝试获取 serviceToken 响应: {text}");
+        
+        // 如果响应为空或者不是JSON，返回一个成功的空对象
+        let json_response = if text.trim().is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::from_str(&text).unwrap_or_else(|_| serde_json::json!({}))
+        };
 
-        Ok(response)
+        Ok(json_response)
     }
 
     /// 消耗 `Login` 并提取 Cookies，其中存储了当前的登录状态。
@@ -160,9 +183,14 @@ pub struct LoginResponse {
 /// [`Login::auth`] 的响应体，但仅包含 [`Login::get_token`] 所需的字段。
 #[derive(Clone, Deserialize, Debug)]
 pub struct AuthResponse {
+    #[serde(default)]
     pub location: String,
-    pub nonce: Number,
-    pub ssecurity: String,
+    #[serde(default)]
+    pub nonce: Option<serde_json::Value>,
+    #[serde(default)]
+    pub ssecurity: Option<String>,
+    #[serde(rename = "notificationUrl", default)]
+    pub notification_url: Option<String>,
 }
 
 fn random_device_id() -> String {
@@ -180,13 +208,27 @@ fn hash_password(password: impl AsRef<[u8]>) -> String {
     result
 }
 
-fn client_sign(payload: &AuthResponse) -> String {
+fn client_sign(payload: &AuthResponse) -> crate::Result<String> {
+    let nonce = payload.nonce.as_ref().ok_or_else(|| {
+        crate::Error::Url(url::ParseError::EmptyHost)
+    })?;
+    let ssecurity = payload.ssecurity.as_ref().ok_or_else(|| {
+        crate::Error::Url(url::ParseError::EmptyHost)
+    })?;
+    
+    // 将 nonce 转换为字符串
+    let nonce_str = match nonce {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        _ => nonce.to_string(),
+    };
+    
     let nsec = Sha1::new()
         .chain_update("nonce=")
-        .chain_update(payload.nonce.to_string())
+        .chain_update(&nonce_str)
         .chain_update("&")
-        .chain_update(&payload.ssecurity)
+        .chain_update(ssecurity)
         .finalize();
 
-    Base64::encode_string(&nsec)
+    Ok(Base64::encode_string(&nsec))
 }

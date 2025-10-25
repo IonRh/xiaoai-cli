@@ -5,21 +5,57 @@ use clap::{Parser, Subcommand};
 use inquire::{Confirm, Password, PasswordDisplayMode, Select, Text};
 use miai::{DeviceInfo, PlayState, Xiaoai, ConversationWatcher};
 use url::Url;
+use serde::{Deserialize, Serialize};
 
 const DEFAULT_AUTH_FILE: &str = "xiaoai-auth.json";
+const DEFAULT_CONFIG_FILE: &str = "config.json";
+
+#[derive(Deserialize, Serialize)]
+struct Config {
+    #[serde(default)]
+    username: String,
+    #[serde(default)]
+    password: String,
+    #[serde(flatten)]
+    watcher_config: serde_json::Value,
+}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     if let Commands::Login = cli.command {
-        let username = Text::new("账号:").prompt()?;
-        let password = Password::new("密码:")
-            .with_display_toggle_enabled()
-            .with_display_mode(PasswordDisplayMode::Masked)
-            .without_confirmation()
-            .with_help_message("CTRL + R 显示/隐藏密码")
-            .prompt()?;
+        // 尝试从配置文件读取用户名和密码
+        let (username, password) = if cli.config_file.exists() {
+            let config_file = File::open(&cli.config_file)?;
+            let config: Config = serde_json::from_reader(BufReader::new(config_file))?;
+            
+            if !config.username.is_empty() && !config.password.is_empty() {
+                eprintln!("使用配置文件中的凭据登录...");
+                (config.username, config.password)
+            } else {
+                // 配置文件存在但凭据为空，提示用户输入
+                let username = Text::new("账号:").prompt()?;
+                let password = Password::new("密码:")
+                    .with_display_toggle_enabled()
+                    .with_display_mode(PasswordDisplayMode::Masked)
+                    .without_confirmation()
+                    .with_help_message("CTRL + R 显示/隐藏密码")
+                    .prompt()?;
+                (username, password)
+            }
+        } else {
+            // 配置文件不存在，提示用户输入
+            let username = Text::new("账号:").prompt()?;
+            let password = Password::new("密码:")
+                .with_display_toggle_enabled()
+                .with_display_mode(PasswordDisplayMode::Masked)
+                .without_confirmation()
+                .with_help_message("CTRL + R 显示/隐藏密码")
+                .prompt()?;
+            (username, password)
+        };
+        
         let xiaoai = Xiaoai::login(&username, &password).await?;
 
         let can_save = if cli.auth_file.exists() {
@@ -62,10 +98,11 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stop => xiaoai.set_play_state(&device_id, PlayState::Stop).await?,
         Commands::Status => {
             let status = xiaoai.player_status_parsed(&device_id).await?;
-            println!("{}", status.raw);
+            // status.raw 已经是 serde_json::Value 类型
+            println!("{}", serde_json::to_string_pretty(&status.raw)?);
             return Ok(());
         }
-        Commands::Check { config } => {
+        Commands::Check => {
             // 获取设备信息
             let devices = xiaoai.device_info().await?;
             let device_info = devices.iter().find(|d| d.device_id == device_id);
@@ -77,12 +114,12 @@ async fn main() -> anyhow::Result<()> {
             eprintln!("🎧 开始监听音箱关键词...");
             eprintln!("设备: {}", device_info.map(|d| d.name.as_str()).unwrap_or("未知"));
             eprintln!("硬件型号: {}", hardware);
-            eprintln!("配置文件: {}", config.display());
+            eprintln!("配置文件: {}", cli.config_file.display());
             eprintln!("按 Ctrl+C 停止监听\n");
             
             // 加载关键词配置
-            let mut watcher = ConversationWatcher::from_json_file(config)
-                .with_context(|| format!("加载配置文件 {} 失败", config.display()))?;
+            let mut watcher = ConversationWatcher::from_json_file(&cli.config_file)
+                .with_context(|| format!("加载配置文件 {} 失败", cli.config_file.display()))?;
             
             // 输出已启用的关键词到 stderr
             let enabled_keywords: Vec<_> = watcher.get_enabled_keywords().collect();
@@ -108,7 +145,6 @@ async fn main() -> anyhow::Result<()> {
                         "timestamp": keyword_match.conversation.time,
                         "query": keyword_match.conversation.query,
                         "matched_keyword": keyword_match.matched_keyword,
-                        "description": keyword_match.config.description,
                         "device_id": device_id,
                     });
                     
@@ -139,6 +175,10 @@ struct Cli {
     #[arg(long, default_value = DEFAULT_AUTH_FILE)]
     auth_file: PathBuf,
 
+    /// 指定配置文件
+    #[arg(short, long, default_value = DEFAULT_CONFIG_FILE)]
+    config_file: PathBuf,
+
     /// 指定设备 ID
     #[arg(short, long)]
     device_id: Option<String>,
@@ -168,11 +208,7 @@ enum Commands {
     /// 获取播放状态与最近对话文本
     Status,
     /// 监听关键词并触发回调（使用配置文件）
-    Check {
-        /// 关键词配置文件路径
-        #[arg(short, long, default_value = "keywords.json")]
-        config: PathBuf,
-    },
+    Check,
 }
 
 impl Cli {

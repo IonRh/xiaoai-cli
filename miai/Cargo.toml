@@ -1,7 +1,7 @@
 [package]
 name = "miai"
 version = "0.2.1"
-edition = "2024"
+edition = "2021"
 homepage = "https://github.com/DreamAlone666/miai"
 repository = "https://github.com/DreamAlone666/miai"
 description = "调用你的小米、小爱音箱"
