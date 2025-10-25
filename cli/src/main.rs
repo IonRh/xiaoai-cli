@@ -19,8 +19,6 @@ struct Config {
     username: String,
     #[serde(default)]
     password: String,
-    #[serde(default)]
-    api: bool,
     #[serde(default = "default_ws_port")]
     ws_port: u16,
     #[serde(default)]

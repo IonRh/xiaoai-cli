@@ -271,7 +271,20 @@ impl Xiaoai {
     /// 由于不同设备/固件返回结构可能不完全相同，解析采用宽松的搜索方式，尽量从返回的 JSON 中提取有用的字符串或数字字段。
     pub async fn player_status_parsed(&self, device_id: &str) -> crate::Result<PlayerStatus> {
         let resp = self.player_status(device_id).await?;
-        Ok(PlayerStatus { raw: resp.data })
+        
+        // 解析 info 字段（如果它是一个 JSON 字符串）
+        let mut data = resp.data;
+        if let Some(info_str) = data.get("info").and_then(|v| v.as_str()) {
+            // 尝试将 info 字符串解析为 JSON 对象
+            if let Ok(info_json) = serde_json::from_str::<Value>(info_str) {
+                // 用解析后的 JSON 替换原来的字符串
+                if let Some(obj) = data.as_object_mut() {
+                    obj.insert("info".to_string(), info_json);
+                }
+            }
+        }
+        
+        Ok(PlayerStatus { raw: data })
     }
 
     /// 设置播放器的播放状态。
