@@ -51,7 +51,8 @@ pub enum MatchMode {
 /// 关键词监听器配置。
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WatcherConfig {
-    /// 关键词配置列表
+    /// 关键词配置列表（支持两种格式）
+    #[serde(deserialize_with = "deserialize_keywords")]
     pub keywords: Vec<KeywordConfig>,
     
     /// 初始轮询间隔（秒）
@@ -73,6 +74,51 @@ pub struct WatcherConfig {
     /// 是否在检测到关键词后暂停小爱回复
     #[serde(default = "default_block_xiaoai")]
     pub block_xiaoai_response: bool,
+}
+
+/// 自定义反序列化函数，支持字符串数组和配置对象数组两种格式
+fn deserialize_keywords<'de, D>(deserializer: D) -> Result<Vec<KeywordConfig>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::{Error, Unexpected};
+    use serde_json::Value;
+    
+    let value = Value::deserialize(deserializer)?;
+    
+    match value {
+        // 支持简单的字符串数组格式: ["keyword1", "keyword2"]
+        Value::Array(arr) if arr.iter().all(|v| v.is_string()) => {
+            let keywords: Vec<KeywordConfig> = arr
+                .into_iter()
+                .filter_map(|v| {
+                    if let Value::String(s) = v {
+                        Some(KeywordConfig {
+                            keywords: vec![s],
+                            match_mode: MatchMode::StartsWith,
+                            enabled: true,
+                            description: String::new(),
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            Ok(keywords)
+        }
+        // 支持配置对象数组格式
+        Value::Array(arr) => {
+            let configs: Result<Vec<KeywordConfig>, _> = arr
+                .into_iter()
+                .map(|v| serde_json::from_value(v))
+                .collect();
+            configs.map_err(Error::custom)
+        }
+        _ => Err(Error::invalid_type(
+            Unexpected::Other("expected array"),
+            &"array of strings or keyword configs",
+        )),
+    }
 }
 
 fn default_initial_interval() -> f64 { 1.0 }

@@ -7,6 +7,9 @@ use miai::{DeviceInfo, PlayState, Xiaoai, ConversationWatcher};
 use url::Url;
 use serde::{Deserialize, Serialize};
 
+mod ws_server;
+use ws_server::WsServer;
+
 const DEFAULT_AUTH_FILE: &str = "xiaoai-auth.json";
 const DEFAULT_CONFIG_FILE: &str = "config.json";
 
@@ -16,11 +19,25 @@ struct Config {
     username: String,
     #[serde(default)]
     password: String,
+    #[serde(default)]
+    api: bool,
+    #[serde(default = "default_ws_port")]
+    ws_port: u16,
+    #[serde(default)]
+    check: bool,
+    #[serde(default)]
+    device_id: String,
+    #[serde(default)]
+    hardware: String,
     #[serde(flatten)]
     watcher_config: serde_json::Value,
 }
 
-#[tokio::main(flavor = "current_thread")]
+fn default_ws_port() -> u16 {
+    8080
+}
+
+#[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
@@ -78,6 +95,59 @@ async fn main() -> anyhow::Result<()> {
         for info in device_info {
             println!("{}", DisplayDeviceInfo(info));
         }
+        return Ok(());
+    }
+
+    // Wsapi 命令 - 启动 WebSocket API 服务器
+    if let Commands::Wsapi = cli.command {
+        eprintln!("🌐 启动 WebSocket API 服务器...");
+        
+        // 加载配置
+        let config_file = File::open(&cli.config_file)?;
+        let config: Config = serde_json::from_reader(BufReader::new(config_file))?;
+        
+        // 创建 WebSocket 服务器
+        let server = WsServer::new(xiaoai.clone(), config.ws_port);
+        
+        // 如果启用了 check，获取或验证设备信息
+        if config.check {
+            // 如果配置中没有 device_id，自动获取
+            let (device_id, hardware) = if config.device_id.is_empty() || config.hardware.is_empty() {
+                eprintln!("📱 未配置设备信息，正在自动获取...");
+                
+                let devices = xiaoai.device_info().await.context("获取设备列表失败")?;
+                ensure!(!devices.is_empty(), "无可用设备，需要在小米音箱 APP 中绑定");
+                
+                if devices.len() == 1 {
+                    let device = &devices[0];
+                    eprintln!("✅ 自动选择唯一设备: {} ({})", device.name, device.hardware);
+                    (device.device_id.clone(), device.hardware.clone())
+                } else {
+                    eprintln!("📋 找到 {} 个设备:", devices.len());
+                    for (i, device) in devices.iter().enumerate() {
+                        eprintln!("  {}. {} - {} ({})", i + 1, device.name, device.device_id, device.hardware);
+                    }
+                    
+                    // 使用第一个设备
+                    let device = &devices[0];
+                    eprintln!("✅ 自动选择第一个设备: {} ({})", device.name, device.hardware);
+                    eprintln!("💡 提示: 可以在 config.json 中设置 device_id 和 hardware 来指定设备");
+                    (device.device_id.clone(), device.hardware.clone())
+                }
+            } else {
+                (config.device_id, config.hardware)
+            };
+            
+            let server_watch = server.clone();
+            
+            tokio::select! {
+                result = server.run_server() => result?,
+                result = server_watch.run_watcher(device_id, hardware) => result?,
+            }
+        } else {
+            server.run_server().await?;
+        }
+        
         return Ok(());
     }
 
@@ -209,6 +279,8 @@ enum Commands {
     Status,
     /// 监听关键词并触发回调（使用配置文件）
     Check,
+    /// 启动 WebSocket API 服务器
+    Wsapi,
 }
 
 impl Cli {

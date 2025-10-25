@@ -1,6 +1,11 @@
 {
   "username": "",
   "password": "",
+  "api": false,
+  "ws_port": 8080,
+  "check": false,
+  "device_id": "",
+  "hardware": "",
   "keywords": [
     "请问",
     "请帮我",
